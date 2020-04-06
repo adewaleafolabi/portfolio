@@ -1,15 +1,13 @@
 import 'package:crypto_font_icons/crypto_font_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:pie_chart/pie_chart.dart';
 import 'package:portfolio/portfolio_store.dart';
 import 'package:portfolio/service/portfolio_data.dart';
-import 'package:random_color/random_color.dart';
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   final PortfolioStore portfolioStore = PortfolioStore(PortfolioService());
   @override
   Widget build(BuildContext context) {
@@ -21,15 +19,21 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.deepPurple,
       ),
       home: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          actions: [
+            Observer(builder: (_) {
+              return portfolioStore.selected.length > 0
+                  ? IconButton(icon:Icon(Icons.delete),onPressed: ()=>portfolioStore.deleteUsingSelected(),)
+                  : Container();
+            })
+          ],
+        ),
         backgroundColor: Colors.white,
-          body: AppHomePage(
-            store: portfolioStore,
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => portfolioStore.refreshPortfolio(),
-            tooltip: 'Refresh',
-            child: Icon(Icons.refresh),
-          )),
+        body: AppHomePage(
+          store: portfolioStore,
+        ),
+      ),
     );
   }
 }
@@ -39,142 +43,219 @@ class AppHomePage extends StatelessWidget {
   const AppHomePage({Key key, @required this.store}) : super(key: key);
   @override
   Widget build(BuildContext context) {
-    final TextStyle tableHeader = TextStyle(
-        fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black);
+    final NumberFormat nf = NumberFormat.compactSimpleCurrency(name: 'CAD');
+    return Observer(
+        builder: (_) => store.loading
+            ? CircularProgressIndicator()
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Container(
+                    padding: EdgeInsets.only(top: 100, bottom: 50),
+                    color: Theme.of(context).primaryColor,
+                    child: Center(
+                      child: Text(
+                        "${nf.format(store.portfolio.total ?? 0)}",
+                        style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      child: Observer(
+                        builder: (_) => RefreshIndicator(
+                          onRefresh: () => store.futureRefreshPortfolio(),
+                          child: ListView.builder(
+                              itemCount: store.portfolio.data.length,
+                              itemBuilder: (ctx, index) => Observer(
+                                  builder: (_) => PortfolioDataWidget(
+                                      data: store.portfolio.data[index],
+                                      toggleSelected: () => store.toggleSelect(
+                                          store.portfolio.data[index]),
+                                      isSelected: store.isSelected(
+                                          store.portfolio.data[index]),
+                                      selectionModeActivated: store.selected.length > 0,
+                                      color: store.colors[index]))),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ));
+  }
+}
+
+class PortfolioDataListView extends StatelessWidget {
+  final List<PortfolioData> data;
+
+  const PortfolioDataListView({Key key, this.data}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container();
+  }
+}
+
+class PortfolioDataWidget extends StatelessWidget {
+  final PortfolioData data;
+  final Color color;
+  final PortfolioStore store;
+  final bool isSelected;
+  final bool selectionModeActivated;
+  final void Function() toggleSelected;
+  const PortfolioDataWidget(
+      {Key key,
+      this.data,
+      this.color,
+      this.store,
+      this.isSelected,
+      this.toggleSelected,
+      this.selectionModeActivated})
+      : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final NumberFormat nfPercent = NumberFormat('#,##0.##%');
     final NumberFormat nf = NumberFormat(
       '#,##0.##',
     );
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 20.0),
-        child: Container(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Observer(
-                  builder: (_) => CustomPaint(
-                    painter: CurvePainter(Colors.purple, Colors.purpleAccent, Colors.deepPurple),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color:Theme.of(context).primaryColor,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top:100,bottom: 50),
-                        child: Center(
-                          child: Text(
-                                "${NumberFormat.compactCurrency(name: 'CAD',symbol: '\$').format(store.portfolio.total ?? 0)}",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  fontSize: 30,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                        ),
-                      ),
-                    ),
-                  )),
-              Observer(
-                  builder: (_) => Container(
-                    child: DataTable(
-                      dataRowHeight: 50,
-                      sortAscending: store.sortAscending,
-                      sortColumnIndex: 3,
-                      columns: [
-                        DataColumn(
-                            label: Text(
-                          "Asset",
-                          style: tableHeader,
-                        )),
-                        DataColumn(
-                          label: Text("Price", style: tableHeader),
-                          numeric: true,
-                          tooltip: 'Price',
-                        ),
-                        DataColumn(
-                          label: Text("Quantity", style: tableHeader),
-                          numeric: true,
-                          tooltip: 'Quantity',
-                          onSort: (columnIndex, ascending) =>
-                              store.sort(columnIndex, ascending),
-                        ),
-                        DataColumn(
-                          label: Text("Value", style: tableHeader),
-                          numeric: true,
-                          tooltip: 'Value',
-                          onSort: (columnIndex, ascending) =>
-                              store.sort(columnIndex, ascending),
-                        ),
-                        DataColumn(
-                            label: Text("Weight", style: tableHeader),
-                            numeric: true,
-                            tooltip: 'Weight'),
-                      ],
-                      rows: buildDataRows(store.portfolio.data, store.colors, context),
-                    ),
-                  )),
-            ],
+    final TextStyle bold = TextStyle(fontWeight: FontWeight.bold);
+    return GestureDetector(
+      onTap: () => (isSelected || selectionModeActivated)
+          ? toggleSelected()
+          : showModalBottomSheet(
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(topRight: Radius.circular(10),topLeft: Radius.circular(10)),
           ),
+              context: context, builder: (context) => PortfolioDataEditWidget(data: data,)),
+      onLongPress: () => toggleSelected(),
+      child: Container(
+
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
+        decoration: BoxDecoration(
+            color: isSelected ? Colors.grey[200] : Colors.transparent,
+            border: Border(
+                bottom: BorderSide(
+                    width: isSelected ? 0.3 : 0.1, color: Colors.grey))),
+        child: Row(
+          children: <Widget>[
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: Theme.of(context).primaryColor,
+                size: 20,
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    data.label ?? data.code,
+                    style: bold,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5.0),
+                    child: Text(
+                      "${nf.format(data.unitPrice)}",
+                      style: TextStyle(fontSize: 10, color: Colors.grey[10]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: Text(
+                  "${nf.format(data.amount)}",
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 20.0),
+                child: Text("${nf.format(data.value)}",
+                    style: bold, textAlign: TextAlign.right),
+              ),
+            ),
+            Expanded(
+              child: LinearPercentIndicator(
+                animation: true,
+                lineHeight: 15.0,
+                animationDuration: 2500,
+                percent: data.weight ?? 0,
+                center: Text(
+                  "${nfPercent.format(data.weight ?? 0)}",
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white),
+                ),
+                linearStrokeCap: LinearStrokeCap.roundAll,
+                progressColor: Theme.of(context).primaryColor,
+                backgroundColor: Colors.deepPurpleAccent,
+              ),
+            )
+          ],
         ),
       ),
     );
   }
 }
 
-List<DataRow> buildDataRows(List<PortfolioData> data, List<Color> colors, BuildContext context) {
-  final NumberFormat nfPercent = NumberFormat('#,##0.##%');
-  final NumberFormat nf = NumberFormat(
-    '#,##0.##',
-  );
-  final TextStyle bold = TextStyle(fontWeight: FontWeight.bold);
-  List<DataRow> rows = [];
-  for (int i = 0; i < data.length; i++) {
-    rows.add(DataRow(cells: [
-      DataCell(Row(
-        children: <Widget>[
-          Text(
-            data[i].label ?? data[i].code,
-            style: bold,
-          ),
-        ],
-      )),
-      DataCell(Text(
-        "${nf.format(data[i].unitPrice)}",
-        style: bold,
-      )),
-      DataCell(Text(
-        "${nf.format(data[i].amount)}",
-        style: bold,
-      )),
-      DataCell(Text(
-        "${nf.format(data[i].value)}",
-        style: bold,
-      )),
-      DataCell(LinearPercentIndicator(
-        width: MediaQuery.of(context).size.width / 4,
-        animation: true,
-        lineHeight: 15.0,
-        animationDuration: 2500,
-        percent: data[i].weight ?? 0,
-        center: Text("${nfPercent.format(data[i].weight ?? 0)}",style: TextStyle(fontSize: 10,fontWeight: FontWeight.w800),),
-        linearStrokeCap: LinearStrokeCap.roundAll,
-        progressColor: colors[i],
-      )),
-    ]));
-  }
-  return rows;
-}
-
-class PortfolioDataWidget extends StatelessWidget {
+class PortfolioDataEditWidget extends StatelessWidget {
   final PortfolioData data;
 
-  const PortfolioDataWidget({Key key, this.data}) : super(key: key);
+  const PortfolioDataEditWidget({Key key, this.data}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
+
+    TextEditingController _assetCode = TextEditingController(text: data.code);
+    TextEditingController _assetQty = TextEditingController(text: '${data.amount}');
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _assetCode,
+              decoration: InputDecoration(hintText: 'Asset Code'),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _assetQty,
+              decoration: InputDecoration(hintText: 'Asset Quantity'),
+              keyboardType: TextInputType.numberWithOptions(signed: false, decimal: true),
+            ),
+          ),
+          SizedBox(
+            height: 20,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: FlatButton.icon(onPressed: (){}, icon: Icon(Icons.delete, color: Colors.white,), label: Text('',style:  TextStyle(color: Colors.white,) ,), color: Colors.red,),
+              )),
+              Expanded(flex:2,child: FlatButton.icon(onPressed: (){}, icon: Icon(Icons.save, color: Colors.white,), label: Text('Save',style: TextStyle(color: Colors.white,),), color: Theme.of(context).primaryColor,)),
+            ],
+          )
+        ],
+      ),
+    );
   }
 }
+
 
 IconData getIcon(PortfolioData data) {
   IconData iconData;
@@ -191,59 +272,4 @@ IconData getIcon(PortfolioData data) {
   }
 
   return iconData;
-}
-
-
-class CurvePainter extends CustomPainter{
-  final Color colorOne, colorTwo, colorThree;
-
-  CurvePainter(this.colorOne, this.colorTwo, this.colorThree);
-  @override
-  void paint(Canvas canvas, Size size) {
-    Path path = Path();
-    Paint paint = Paint();
-
-
-    path.lineTo(0, size.height *0.75);
-    path.quadraticBezierTo(size.width* 0.10, size.height*0.70, size.width*0.17, size.height*0.90);
-    path.quadraticBezierTo(size.width*0.20, size.height, size.width*0.25, size.height*0.90);
-    path.quadraticBezierTo(size.width*0.40, size.height*0.40, size.width*0.50, size.height*0.70);
-    path.quadraticBezierTo(size.width*0.60, size.height*0.85, size.width*0.65, size.height*0.65);
-    path.quadraticBezierTo(size.width*0.70, size.height*0.90, size.width, 0);
-    path.close();
-
-    paint.color = colorThree;
-    canvas.drawPath(path, paint);
-
-    path = Path();
-    path.lineTo(0, size.height*0.50);
-    path.quadraticBezierTo(size.width*0.10, size.height*0.80, size.width*0.15, size.height*0.60);
-    path.quadraticBezierTo(size.width*0.20, size.height*0.45, size.width*0.27, size.height*0.60);
-    path.quadraticBezierTo(size.width*0.45, size.height, size.width*0.50, size.height*0.80);
-    path.quadraticBezierTo(size.width*0.55, size.height*0.45, size.width*0.75, size.height*0.75);
-    path.quadraticBezierTo(size.width*0.85, size.height*0.93, size.width, size.height*0.60);
-    path.lineTo(size.width, 0);
-    path.close();
-
-    paint.color = colorTwo;
-    canvas.drawPath(path, paint);
-
-    path =Path();
-    path.lineTo(0, size.height*0.75);
-    path.quadraticBezierTo(size.width*0.10, size.height*0.55, size.width*0.22, size.height*0.70);
-    path.quadraticBezierTo(size.width*0.30, size.height*0.90, size.width*0.40, size.height*0.75);
-    path.quadraticBezierTo(size.width*0.52, size.height*0.50, size.width*0.65, size.height*0.70);
-    path.quadraticBezierTo(size.width*0.75, size.height*0.85, size.width, size.height*0.60);
-    path.lineTo(size.width, 0);
-    path.close();
-
-    paint.color = colorOne;
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return oldDelegate != this;
-  }
-
 }

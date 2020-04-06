@@ -66,6 +66,32 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
     }, _$sortAscendingAtom, name: '${_$sortAscendingAtom.name}_set');
   }
 
+  final _$selectedAtom = Atom(name: '_PortfolioStore.selected');
+
+  @override
+  List<PortfolioData> get selected {
+    _$selectedAtom.context.enforceReadPolicy(_$selectedAtom);
+    _$selectedAtom.reportObserved();
+    return super.selected;
+  }
+
+  @override
+  set selected(List<PortfolioData> value) {
+    _$selectedAtom.context.conditionallyRunInAction(() {
+      super.selected = value;
+      _$selectedAtom.reportChanged();
+    }, _$selectedAtom, name: '${_$selectedAtom.name}_set');
+  }
+
+  final _$futureRefreshPortfolioAsyncAction =
+      AsyncAction('futureRefreshPortfolio');
+
+  @override
+  Future<Null> futureRefreshPortfolio() {
+    return _$futureRefreshPortfolioAsyncAction
+        .run(() => super.futureRefreshPortfolio());
+  }
+
   final _$_PortfolioStoreActionController =
       ActionController(name: '_PortfolioStore');
 
@@ -74,6 +100,16 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
     final _$actionInfo = _$_PortfolioStoreActionController.startAction();
     try {
       return super.setPortfolio(value);
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void addToSelected(PortfolioData value) {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.addToSelected(value);
     } finally {
       _$_PortfolioStoreActionController.endAction(_$actionInfo);
     }
@@ -110,6 +146,26 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
   }
 
   @override
+  void toggleSelect(PortfolioData value) {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.toggleSelect(value);
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void deleteUsingSelected() {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.deleteUsingSelected();
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   void sort(int col, bool ascending) {
     final _$actionInfo = _$_PortfolioStoreActionController.startAction();
     try {
@@ -122,7 +178,7 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
   @override
   String toString() {
     final string =
-        'portfolio: ${portfolio.toString()},loading: ${loading.toString()},sortAscending: ${sortAscending.toString()},colors: ${colors.toString()}';
+        'portfolio: ${portfolio.toString()},loading: ${loading.toString()},sortAscending: ${sortAscending.toString()},selected: ${selected.toString()},colors: ${colors.toString()}';
     return '{$string}';
   }
 }

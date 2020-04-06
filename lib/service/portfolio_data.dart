@@ -4,7 +4,6 @@ class Portfolio {
   List<PortfolioData> data;
   double total;
   String baseCurrency = "CAD";
-
   Portfolio(this.data);
 }
 
@@ -26,8 +25,6 @@ class PortfolioData {
   String toString() {
     return 'PortfolioData{code: $code, amount: $amount}';
   }
-
-
 }
 
 class PortfolioService {
@@ -78,14 +75,12 @@ class PortfolioService {
           var data = quotePrice[portfolio.data[i].code];
           double parsedPrice = double.parse(data['price'] ?? 0);
           if (data['currency'] == 'USD') {
-            portfolio.data[i].value = portfolio.data[i].amount *
-                (parsedPrice * cadUSD);
+            portfolio.data[i].value =
+                portfolio.data[i].amount * (parsedPrice * cadUSD);
             portfolio.data[i].unitPrice = (parsedPrice * cadUSD);
           } else {
-            portfolio.data[i].value =
-                portfolio.data[i].amount * parsedPrice;
+            portfolio.data[i].value = portfolio.data[i].amount * parsedPrice;
             portfolio.data[i].unitPrice = parsedPrice;
-
           }
         }
         if (portfolio.data[i].label == 'NGN') {
@@ -102,5 +97,10 @@ class PortfolioService {
       }
     }
     return portfolio;
+  }
+
+
+  void calculate(){
+
   }
 }
