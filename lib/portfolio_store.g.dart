@@ -83,6 +83,37 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
     }, _$selectedAtom, name: '${_$selectedAtom.name}_set');
   }
 
+  final _$pricesAtom = Atom(name: '_PortfolioStore.prices');
+
+  @override
+  Map<String, double> get prices {
+    _$pricesAtom.context.enforceReadPolicy(_$pricesAtom);
+    _$pricesAtom.reportObserved();
+    return super.prices;
+  }
+
+  @override
+  set prices(Map<String, double> value) {
+    _$pricesAtom.context.conditionallyRunInAction(() {
+      super.prices = value;
+      _$pricesAtom.reportChanged();
+    }, _$pricesAtom, name: '${_$pricesAtom.name}_set');
+  }
+
+  final _$loadAsyncAction = AsyncAction('load');
+
+  @override
+  Future<void> load() {
+    return _$loadAsyncAction.run(() => super.load());
+  }
+
+  final _$refreshPortfolioAsyncAction = AsyncAction('refreshPortfolio');
+
+  @override
+  Future<dynamic> refreshPortfolio() {
+    return _$refreshPortfolioAsyncAction.run(() => super.refreshPortfolio());
+  }
+
   final _$futureRefreshPortfolioAsyncAction =
       AsyncAction('futureRefreshPortfolio');
 
@@ -94,6 +125,16 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
 
   final _$_PortfolioStoreActionController =
       ActionController(name: '_PortfolioStore');
+
+  @override
+  void setPrices(Map<String, double> value) {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.setPrices(value);
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
 
   @override
   void setPortfolio(Portfolio value) {
@@ -136,16 +177,6 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
   }
 
   @override
-  void refreshPortfolio() {
-    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
-    try {
-      return super.refreshPortfolio();
-    } finally {
-      _$_PortfolioStoreActionController.endAction(_$actionInfo);
-    }
-  }
-
-  @override
   void toggleSelect(PortfolioData value) {
     final _$actionInfo = _$_PortfolioStoreActionController.startAction();
     try {
@@ -166,6 +197,36 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
   }
 
   @override
+  void deleteDataItem(PortfolioData value) {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.deleteDataItem(value);
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void createPortfolio(Portfolio portfolio) {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.createPortfolio(portfolio);
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void saveDataItem(PortfolioData value) {
+    final _$actionInfo = _$_PortfolioStoreActionController.startAction();
+    try {
+      return super.saveDataItem(value);
+    } finally {
+      _$_PortfolioStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   void sort(int col, bool ascending) {
     final _$actionInfo = _$_PortfolioStoreActionController.startAction();
     try {
@@ -178,7 +239,7 @@ mixin _$PortfolioStore on _PortfolioStore, Store {
   @override
   String toString() {
     final string =
-        'portfolio: ${portfolio.toString()},loading: ${loading.toString()},sortAscending: ${sortAscending.toString()},selected: ${selected.toString()},colors: ${colors.toString()}';
+        'portfolio: ${portfolio.toString()},loading: ${loading.toString()},sortAscending: ${sortAscending.toString()},selected: ${selected.toString()},prices: ${prices.toString()},colors: ${colors.toString()}';
     return '{$string}';
   }
 }

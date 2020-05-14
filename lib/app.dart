@@ -3,28 +3,46 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:intl/intl.dart';
+import 'package:localstorage/localstorage.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:portfolio/app_header.dart';
+import 'package:portfolio/asset_distribution.dart';
+import 'package:portfolio/portfolio_data_edit.dart';
+import 'package:portfolio/portfolio_data_list.dart';
+import 'package:portfolio/portfolio_data_widget.dart';
 import 'package:portfolio/portfolio_store.dart';
+import 'package:portfolio/service/database_helper.dart';
 import 'package:portfolio/service/portfolio_data.dart';
+import 'package:portfolio/service/portfolio_repository.dart';
+import 'package:portfolio/service/portfolio_service.dart';
 
 class MyApp extends StatelessWidget {
-  final PortfolioStore portfolioStore = PortfolioStore(PortfolioService());
+  PortfolioStore portfolioStore;
+  final ThemeData appTheme = ThemeData(
+      fontFamily: "Ubuntu",
+      primaryColor: Color(0xFF08064e), //Color(0xFF20639B),
+
+      accentColor: Color(0xFF0078FB));
   @override
+  MyApp() {
+    portfolioStore = PortfolioStore(
+        PortfolioService(PortfolioRepository(DatabaseHelper.instance)));
+  }
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Portfolio',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: "Ubuntu",
-        primarySwatch: Colors.deepPurple,
-      ),
+      theme: appTheme,
       home: Scaffold(
         appBar: AppBar(
           elevation: 0,
           actions: [
             Observer(builder: (_) {
               return portfolioStore.selected.length > 0
-                  ? IconButton(icon:Icon(Icons.delete),onPressed: ()=>portfolioStore.deleteUsingSelected(),)
+                  ? IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () => portfolioStore.deleteUsingSelected(),
+                    )
                   : Container();
             })
           ],
@@ -43,233 +61,72 @@ class AppHomePage extends StatelessWidget {
   const AppHomePage({Key key, @required this.store}) : super(key: key);
   @override
   Widget build(BuildContext context) {
-    final NumberFormat nf = NumberFormat.compactSimpleCurrency(name: 'CAD');
+    store.load();
     return Observer(
         builder: (_) => store.loading
-            ? CircularProgressIndicator()
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Container(
-                    padding: EdgeInsets.only(top: 100, bottom: 50),
-                    color: Theme.of(context).primaryColor,
-                    child: Center(
-                      child: Text(
-                        "${nf.format(store.portfolio.total ?? 0)}",
-                        style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      child: Observer(
-                        builder: (_) => RefreshIndicator(
-                          onRefresh: () => store.futureRefreshPortfolio(),
-                          child: ListView.builder(
-                              itemCount: store.portfolio.data.length,
-                              itemBuilder: (ctx, index) => Observer(
-                                  builder: (_) => PortfolioDataWidget(
-                                      data: store.portfolio.data[index],
-                                      toggleSelected: () => store.toggleSelect(
-                                          store.portfolio.data[index]),
-                                      isSelected: store.isSelected(
-                                          store.portfolio.data[index]),
-                                      selectionModeActivated: store.selected.length > 0,
-                                      color: store.colors[index]))),
+            ? Center(child: CircularProgressIndicator())
+            : store.portfolio == null
+                ? AppNoDataWidget(
+                    createPortfolioFunction: store.createPortfolio,
+                  )
+                : Column(
+                    children: <Widget>[
+                      Observer(
+                          builder: (_) => AppHeader(
+                                portfolio: store.portfolio,
+                              )),
+                      Observer(
+                          builder: (_) => AssetDistribution(
+                                portfolio: store.portfolio,
+                              )),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 20, right: 20),
+                          child: PortfolioDataList(store: store),
                         ),
                       ),
-                    ),
-                  ),
-                ],
-              ));
+                    ],
+                  ));
   }
 }
 
-class PortfolioDataListView extends StatelessWidget {
-  final List<PortfolioData> data;
+class AppNoDataWidget extends StatelessWidget {
+  final Function createPortfolioFunction;
 
-  const PortfolioDataListView({Key key, this.data}) : super(key: key);
-  @override
-  Widget build(BuildContext context) {
-    return Container();
-  }
-}
-
-class PortfolioDataWidget extends StatelessWidget {
-  final PortfolioData data;
-  final Color color;
-  final PortfolioStore store;
-  final bool isSelected;
-  final bool selectionModeActivated;
-  final void Function() toggleSelected;
-  const PortfolioDataWidget(
-      {Key key,
-      this.data,
-      this.color,
-      this.store,
-      this.isSelected,
-      this.toggleSelected,
-      this.selectionModeActivated})
+  const AppNoDataWidget({Key key, this.createPortfolioFunction})
       : super(key: key);
   @override
   Widget build(BuildContext context) {
-    final NumberFormat nfPercent = NumberFormat('#,##0.##%');
-    final NumberFormat nf = NumberFormat(
-      '#,##0.##',
-    );
-    final TextStyle bold = TextStyle(fontWeight: FontWeight.bold);
-    return GestureDetector(
-      onTap: () => (isSelected || selectionModeActivated)
-          ? toggleSelected()
-          : showModalBottomSheet(
-
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(topRight: Radius.circular(10),topLeft: Radius.circular(10)),
-          ),
-              context: context, builder: (context) => PortfolioDataEditWidget(data: data,)),
-      onLongPress: () => toggleSelected(),
-      child: Container(
-
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
-        decoration: BoxDecoration(
-            color: isSelected ? Colors.grey[200] : Colors.transparent,
-            border: Border(
-                bottom: BorderSide(
-                    width: isSelected ? 0.3 : 0.1, color: Colors.grey))),
-        child: Row(
-          children: <Widget>[
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: Theme.of(context).primaryColor,
-                size: 20,
-              ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    data.label ?? data.code,
-                    style: bold,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5.0),
-                    child: Text(
-                      "${nf.format(data.unitPrice)}",
-                      style: TextStyle(fontSize: 10, color: Colors.grey[10]),
-                    ),
-                  ),
-                ],
+    PortfolioData item =
+        PortfolioData(code: 'CAD', amount: 0, type: AssetType.CURRENCY);
+    Portfolio portfolio = Portfolio(baseCurrency: 'CAD', data: [item]);
+    return Container(
+      color: Theme.of(context).primaryColor,
+      child: Center(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            InkWell(
+              onTap: () => createPortfolioFunction(portfolio),
+              child: Icon(
+                Icons.add,
+                color: Theme.of(context).accentColor,
+                size: 40,
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: Text(
-                  "${nf.format(data.amount)}",
-                  textAlign: TextAlign.right,
-                ),
+            Text(
+              "Create new portfolio",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).accentColor,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 20.0),
-                child: Text("${nf.format(data.value)}",
-                    style: bold, textAlign: TextAlign.right),
-              ),
-            ),
-            Expanded(
-              child: LinearPercentIndicator(
-                animation: true,
-                lineHeight: 15.0,
-                animationDuration: 2500,
-                percent: data.weight ?? 0,
-                center: Text(
-                  "${nfPercent.format(data.weight ?? 0)}",
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white),
-                ),
-                linearStrokeCap: LinearStrokeCap.roundAll,
-                progressColor: Theme.of(context).primaryColor,
-                backgroundColor: Colors.deepPurpleAccent,
-              ),
-            )
           ],
         ),
       ),
     );
   }
-}
-
-class PortfolioDataEditWidget extends StatelessWidget {
-  final PortfolioData data;
-
-  const PortfolioDataEditWidget({Key key, this.data}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-
-    TextEditingController _assetCode = TextEditingController(text: data.code);
-    TextEditingController _assetQty = TextEditingController(text: '${data.amount}');
-    return Container(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _assetCode,
-              decoration: InputDecoration(hintText: 'Asset Code'),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _assetQty,
-              decoration: InputDecoration(hintText: 'Asset Quantity'),
-              keyboardType: TextInputType.numberWithOptions(signed: false, decimal: true),
-            ),
-          ),
-          SizedBox(
-            height: 20,
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
-              Expanded(child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: FlatButton.icon(onPressed: (){}, icon: Icon(Icons.delete, color: Colors.white,), label: Text('',style:  TextStyle(color: Colors.white,) ,), color: Colors.red,),
-              )),
-              Expanded(flex:2,child: FlatButton.icon(onPressed: (){}, icon: Icon(Icons.save, color: Colors.white,), label: Text('Save',style: TextStyle(color: Colors.white,),), color: Theme.of(context).primaryColor,)),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-}
-
-
-IconData getIcon(PortfolioData data) {
-  IconData iconData;
-  switch (data.type) {
-    case AssetType.CRYPTO:
-      iconData = CryptoFontIcons.ETH;
-      break;
-    case AssetType.CURRENCY:
-      iconData = Icons.attach_money;
-      break;
-    case AssetType.STOCK:
-      iconData = Icons.graphic_eq;
-      break;
-  }
-
-  return iconData;
 }
